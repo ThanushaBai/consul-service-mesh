@@ -21,7 +21,7 @@ The architecture follows the classic **control plane + data plane** separation m
 
 ### High-Level (Control Plane + Data Plane)
 
-![High-Level Architecture](diagrams/architecture-high-level.png)
+![High-Level Architecture](../diagrams/architecture-high-level.png)
 
 ---
 
@@ -50,7 +50,7 @@ A lightweight proxy (Envoy by default) runs alongside every service instance and
 
 ### Sidecar Proxy (Inbound & Outbound)
 
-![Sidecar Proxy](diagrams/architecture-sidecar.png)
+![Sidecar Proxy](../diagrams/architecture-sidecar.png)
 
 ### 2.3 Certificate Authority (CA)
 
@@ -62,7 +62,7 @@ Consul's built-in CA (or a delegated Vault / AWS Private CA) issues short-lived 
 
 ### Certificate & Identity Flow
 
-![Certificate and Identity Flow](diagrams/architecture-ca.png)
+![Certificate and Identity Flow](../diagrams/architecture-ca.png)
 
 ### 2.4 Intentions
 
@@ -75,7 +75,7 @@ Intentions are authorization rules for service-to-service communication, enforce
 
 ### Intention Enforcement
 
-![Intention Enforcement](diagrams/architecture-intentions.png)
+![Intention Enforcement](../diagrams/architecture-intentions.png)
 
 ---
 
@@ -130,7 +130,7 @@ When application A calls service B, the traffic goes through these steps:
 
 ### Traffic Flow (Sequence)
 
-![Traffic Flow](diagrams/architecture-traffic-flow.png)
+![Traffic Flow](../diagrams/architecture-traffic-flow.png)
 
 ---
 
@@ -166,7 +166,7 @@ Consul 1.14 introduced Consul Dataplane, which removes the dependency on node-le
 
 ### Traditional vs. Consul Dataplane
 
-![Traditional vs Dataplane](diagrams/architecture-dataplane.png)
+![Traditional vs Dataplane](../diagrams/architecture-dataplane.png)
 
 ---
 
@@ -186,7 +186,7 @@ Overhead mainly comes from three areas:
 
 ### Latency Overhead Sources
 
-![Latency Overhead Sources](diagrams/architecture-latency.png)
+![Latency Overhead Sources](../diagrams/architecture-latency.png)
 
 ### 5.2 CPU / Memory Overhead
 
