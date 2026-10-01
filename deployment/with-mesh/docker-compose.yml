@@ -1,0 +1,111 @@
+services:
+
+  # ─── Consul Server (control plane) ───
+  consul:
+    image: hashicorp/consul:1.18
+    container_name: consul-server
+    command: agent -config-file=/consul/config/server.hcl
+    ports:
+      - "8500:8500"
+    volumes:
+      - ./consul-config/server.hcl:/consul/config/server.hcl:ro
+    networks:
+      - mesh-net
+
+  # ─── Backend: agent container runs everything ───
+  backend-agent:
+    image: hashicorp/consul:1.18
+    container_name: mesh-backend-agent
+    depends_on:
+      - consul
+    networks:
+      - mesh-net
+    volumes:
+      - ./consul-config/agent-backend.hcl:/consul/config/agent.hcl:ro
+      - ./consul-config/backend-service.hcl:/consul/config/backend-service.hcl:ro
+    command: >
+      agent
+      -node=backend-node
+      -retry-join=consul-server
+      -bind=0.0.0.0
+      -client=0.0.0.0
+
+  # App shares agent's network namespace (like K8s pod)
+  backend:
+    image: testapp-backend:latest
+    pull_policy: never
+    container_name: mesh-backend
+    network_mode: "service:backend-agent"
+    depends_on:
+      - backend-agent
+
+  # Sidecar also shares agent's network namespace
+  backend-sidecar:
+    build:
+      context: ./sidecar
+      dockerfile: Dockerfile
+    container_name: mesh-backend-sidecar
+    depends_on:
+      - backend-agent
+    network_mode: "service:backend-agent"
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      until wget -q -O- http://localhost:8500/v1/status/leader > /dev/null 2>&1; do sleep 2; done;
+      consul connect envoy
+      -sidecar-for backend-1
+      -http-addr=localhost:8500
+      -grpc-addr=localhost:8502
+      -admin-bind 0.0.0.0:19000
+      "
+
+  # ─── Frontend: same pattern ───
+  frontend-agent:
+    image: hashicorp/consul:1.18
+    container_name: mesh-frontend-agent
+    depends_on:
+      - consul
+    networks:
+      - mesh-net
+    volumes:
+      - ./consul-config/agent-frontend.hcl:/consul/config/agent.hcl:ro
+      - ./consul-config/frontend-service.hcl:/consul/config/frontend-service.hcl:ro
+    command: >
+      agent
+      -node=frontend-node
+      -retry-join=consul-server
+      -bind=0.0.0.0
+      -client=0.0.0.0
+
+  frontend:
+    image: testapp-frontend:latest
+    pull_policy: never
+    container_name: mesh-frontend
+    environment:
+      - BACKEND_URL=http://localhost:9191
+    network_mode: "service:frontend-agent"
+    depends_on:
+      - frontend-agent
+
+  frontend-sidecar:
+    build:
+      context: ./sidecar
+      dockerfile: Dockerfile
+    container_name: mesh-frontend-sidecar
+    depends_on:
+      - frontend-agent
+    network_mode: "service:frontend-agent"
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      until wget -q -O- http://localhost:8500/v1/status/leader > /dev/null 2>&1; do sleep 2; done;
+      consul connect envoy
+      -sidecar-for frontend-1
+      -http-addr=localhost:8500
+      -grpc-addr=localhost:8502
+      -admin-bind 0.0.0.0:19001
+      "
+
+networks:
+  mesh-net:
+    driver: bridge
