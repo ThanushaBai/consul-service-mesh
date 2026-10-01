@@ -1,0 +1,33 @@
+services:
+
+  backend:
+    image: testapp-backend:latest
+    pull_policy: never
+    container_name: baseline-backend
+    networks:
+      - testapp-net
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    image: testapp-frontend:latest
+    pull_policy: never
+    container_name: baseline-frontend
+    environment:
+      - BACKEND_URL=http://backend:8080
+    networks:
+      - testapp-net
+    ports:
+      - "8081:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+networks:
+  testapp-net:
+    driver: bridge
