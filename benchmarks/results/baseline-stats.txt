@@ -1,0 +1,7 @@
+# Baseline environment — 60s load test with hey (-z 60s -c 50)
+# Captured at: 2026-10-02
+# Command: docker run --rm --network host williamyeh/hey -z 60s -c 50 http://localhost:8081/
+
+NAME                CPU %     MEM USAGE / LIMIT     MEM %
+baseline-backend    14.85%    55.92MiB / 3.743GiB   1.46%
+baseline-frontend   0.02%     45.36MiB / 3.743GiB   1.18%

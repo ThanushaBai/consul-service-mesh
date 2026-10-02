@@ -1,0 +1,13 @@
+# Mesh environment — 60s load test with hey (-z 60s -c 50)
+# Captured at: 2026-10-02
+# Command: docker run --rm --network host williamyeh/hey -z 60s -c 50 http://localhost:8081/
+# Note: CPU values captured while hey was running (3 consecutive snapshots)
+
+NAME                    CPU %     MEM USAGE / LIMIT     MEM %
+mesh-backend            0.23%     50.21MiB / 3.743GiB   1.31%
+mesh-backend-agent      0.74%     37.11MiB / 3.743GiB   0.97%
+mesh-backend-sidecar    2.58%     34.07MiB / 3.743GiB   0.89%
+mesh-frontend           0.02%     32.48MiB / 3.743GiB   0.85%
+mesh-frontend-agent     0.47%     39.58MiB / 3.743GiB   1.03%
+mesh-frontend-sidecar   3.18%     45.07MiB / 3.743GiB   1.18%
+consul-server           1.06%     39.81MiB / 3.743GiB   1.04%
