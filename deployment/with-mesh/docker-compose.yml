@@ -67,6 +67,9 @@ services:
       - consul
     networks:
       - mesh-net
+    ports:
+      - "8081:8080"
+      - "9191:9191"
     volumes:
       - ./consul-config/agent-frontend.hcl:/consul/config/agent.hcl:ro
       - ./consul-config/frontend-service.hcl:/consul/config/frontend-service.hcl:ro
