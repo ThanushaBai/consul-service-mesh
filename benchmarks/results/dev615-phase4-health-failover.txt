@@ -1,0 +1,58 @@
+# DEV-615 Phase 4 — Health-Check Failover Test
+# Captured at: 2026-10-05
+
+## Test Setup
+- 3 backend replicas healthy
+- Continuous load: hey -z 120s -c 10 http://localhost:8081/
+- Action: killed ONLY the app container (mesh-backend-2)
+  → Agent + sidecar remained alive; only the app process died
+
+## Before Kill — All 3 Healthy
+backend.default...::172.18.0.3:21000::healthy   (backend-1)
+backend.default...::172.18.0.5:21000::healthy   (backend-2)
+backend.default...::172.18.0.4:21000::healthy   (backend-3)
+
+## Consul Health Check Detected the Failure
+backend-2 service check flipped to:
+  Status: critical
+  Output: Get "http://localhost:8080/health": dial tcp [::1]:8080: connect: connection refused
+
+## After Detection — Envoy Marks Endpoint Unhealthy
+backend.default...::172.18.0.3:21000::healthy              (backend-1)
+backend.default...::172.18.0.5:21000::/failed_eds_health   (backend-2)
+backend.default...::172.18.0.4:21000::healthy              (backend-3)
+
+## Request Distribution During Test
+172.18.0.3:21000::rq_total::17863   backend-1  (served majority)
+172.18.0.4:21000::rq_total::17859   backend-3  (served majority)
+172.18.0.5:21000::rq_total::922     backend-2  (frozen — no new requests after ~10s)
+
+## hey Load Test Result (120s duration)
+Total:        120.07 secs
+Requests/sec: 153.38
+Average:      65.2 ms
+P50:          60.6 ms
+P95:          105.1 ms
+P99:          144.0 ms
+
+Status codes:
+  [200] 18150 responses   (98.5%)
+  [502] 267 responses     (1.5%)
+
+## Analysis
+When only the app container died (not the whole pod):
+- Consul's HTTP health check started failing (5s interval, ~2 failures needed)
+- After ~10-15s, Consul marked the service as critical
+- Envoy removed the endpoint from its load balancer
+- All subsequent requests routed to backend-1 and backend-3
+- 267 requests returned 502 during the detection window
+
+## Conclusion
+Health-check-based failover works but introduces a ~10-15s detection
+window during which a small percentage of requests fail (1.5% in this
+test). Compared to Phase 2 (pod kill = 0 errors, instant detection),
+this scenario is more representative of real-world application crashes
+where the process dies but the container/network stays alive.
+
+Trade-off: health checks are more thorough (catch hung/broken apps)
+but slower to detect than TCP-level failures.

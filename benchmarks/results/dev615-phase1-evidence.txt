@@ -1,0 +1,21 @@
+# DEV-615 Phase 1 — Load Balancing Verification
+# Captured at: 2026-10-05
+
+## Backend Replicas Registered (Consul Catalog)
+backend-1  @ 172.18.0.3
+backend-2  @ 172.18.0.5
+backend-3  @ 172.18.0.4
+
+## Envoy Endpoint Health (from frontend sidecar)
+backend.default.dc1...::172.18.0.3:21000::healthy
+backend.default.dc1...::172.18.0.5:21000::healthy
+backend.default.dc1...::172.18.0.4:21000::healthy
+
+## Request Distribution After 100 Requests (hey -n 100 -c 5)
+172.18.0.3:21000::rq_total::33
+172.18.0.5:21000::rq_total::34
+172.18.0.4:21000::rq_total::34
+
+## Conclusion
+Load balancing is working as expected — requests are distributed
+evenly across all 3 backend replicas (~33% each).

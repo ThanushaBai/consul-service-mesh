@@ -1,0 +1,60 @@
+# DEV-615 Phase 2 — Failover Test
+# Captured at: 2026-10-05
+
+## Test Setup
+- 3 backend replicas running (backend-1, backend-2, backend-3)
+- Continuous load: hey -z 120s -c 10 http://localhost:8081/
+- Action: killed mesh-backend-agent-2 mid-test (took down replica 2 entirely)
+
+## Envoy View Before Kill (all 3 healthy)
+backend.default.dc1...::172.18.0.3:21000::healthy   (backend-1)
+backend.default.dc1...::172.18.0.5:21000::healthy   (backend-2)
+backend.default.dc1...::172.18.0.4:21000::healthy   (backend-3)
+
+## Envoy View After Kill (~15 seconds later)
+backend.default.dc1...::172.18.0.3:21000::healthy   (backend-1)
+backend.default.dc1...::172.18.0.4:21000::healthy   (backend-3)
+(172.18.0.5 gone from Envoy's load balancer)
+
+## hey Load Test Result (120s duration)
+Total:        120.0263 secs
+Requests/sec: 159.4984
+Average:      62.7 ms
+P50:          60.5 ms
+P95:          89.0 ms
+P99:          113.1 ms
+Errors:       0
+Status codes: [200] 19144 responses
+
+## Conclusion
+The mesh handled a mid-test backend failure with ZERO errors.
+Envoy detected the dead replica via Consul health checks and
+rerouted 100% of traffic to the 2 surviving replicas. The
+frontend application was unaware of the failure.
+
+
+------------------------------------------------------------------------------
+
+
+## Recovery Phase — Replica 2 Restarted
+
+### After restart (docker stop + start in order: agent → app → sidecar):
+- Agent re-joined cluster: `backend-node-2  172.18.0.5:8301  alive`
+- Service re-registered with Consul
+- Sidecar booted Envoy, bound port 21000 on `0.0.0.0`
+- Frontend's Envoy marked the endpoint healthy again
+
+### Envoy View After Recovery (all 3 healthy)
+backend.default.dc1...::172.18.0.3:21000::healthy   (backend-1)
+backend.default.dc1...::172.18.0.4:21000::healthy   (backend-3)
+backend.default.dc1...::172.18.0.5:21000::healthy   (backend-2 — rejoined)
+
+### Request Distribution After Recovery (90 new requests)
+backend.default.dc1...::172.18.0.3:21000::rq_total::9230   (+30)   backend-1
+backend.default.dc1...::172.18.0.4:21000::rq_total::9228   (+31)   backend-3
+backend.default.dc1...::172.18.0.5:21000::rq_total::29     (+29)   backend-2
+
+### Conclusion
+The recovered replica automatically rejoined the mesh without any
+manual configuration on the client side. Load balancing restored to
+3-way distribution immediately after Envoy detected the healthy endpoint.

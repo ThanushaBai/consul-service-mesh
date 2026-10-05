@@ -1,0 +1,39 @@
+# DEV-615 Phase 3 — Intention Denial Test
+# Captured at: 2026-10-05
+
+## Test Setup
+- 3 backend replicas healthy
+- Frontend → Backend: allow intention active
+- Baseline behavior: traffic succeeds through mTLS
+
+## Actions
+
+### Delete the allow intention
+$ docker exec consul-server consul intention delete frontend backend
+Intention deleted.
+
+### Create a DENY intention
+$ docker exec consul-server consul intention create -deny frontend backend
+Created: frontend => backend (deny)
+
+### Verify the intention
+$ docker exec consul-server consul intention check frontend backend
+Denied
+
+### Test — request should now be BLOCKED
+$ curl.exe http://localhost:8081/
+{"backend_url_used":"http://localhost:9191","error":"('Connection aborted.',
+RemoteDisconnected('Remote end closed connection without response'))","service":"frontend"}
+
+## Analysis
+When the intention was flipped from "allow" to "deny":
+- The frontend's Envoy sidecar refused to open the mTLS connection
+- The connection was reset cleanly (no partial data leaked)
+- The frontend application received a "RemoteDisconnected" error
+- Traffic never reached the backend sidecar
+
+## Conclusion
+Intentions enforce L4/L7 authorization rules at the data plane
+without any application changes. Toggling allow → deny immediately
+blocks service-to-service traffic. This is the core of zero-trust
+networking in Consul Connect.

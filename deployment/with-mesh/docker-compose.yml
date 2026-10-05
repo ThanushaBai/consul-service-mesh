@@ -12,10 +12,10 @@ services:
     networks:
       - mesh-net
 
-  # ─── Backend: agent container runs everything ───
-  backend-agent:
+  # ─── Backend Replica 1 ───
+  backend-agent-1:
     image: hashicorp/consul:1.18
-    container_name: mesh-backend-agent
+    container_name: mesh-backend-agent-1
     depends_on:
       - consul
     networks:
@@ -25,29 +25,27 @@ services:
       - ./consul-config/backend-service.hcl:/consul/config/backend-service.hcl:ro
     command: >
       agent
-      -node=backend-node
+      -node=backend-node-1
       -retry-join=consul-server
       -bind=0.0.0.0
       -client=0.0.0.0
 
-  # App shares agent's network namespace (like K8s pod)
-  backend:
+  backend-1:
     image: testapp-backend:latest
     pull_policy: never
-    container_name: mesh-backend
-    network_mode: "service:backend-agent"
+    container_name: mesh-backend-1
+    network_mode: "service:backend-agent-1"
     depends_on:
-      - backend-agent
+      - backend-agent-1
 
-  # Sidecar also shares agent's network namespace
-  backend-sidecar:
+  backend-sidecar-1:
     build:
       context: ./sidecar
       dockerfile: Dockerfile
-    container_name: mesh-backend-sidecar
+    container_name: mesh-backend-sidecar-1
     depends_on:
-      - backend-agent
-    network_mode: "service:backend-agent"
+      - backend-agent-1
+    network_mode: "service:backend-agent-1"
     entrypoint: /bin/sh
     command: >
       -c "
@@ -59,7 +57,97 @@ services:
       -admin-bind 0.0.0.0:19000
       "
 
-  # ─── Frontend: same pattern ───
+  # ─── Backend Replica 2 ───
+  backend-agent-2:
+    image: hashicorp/consul:1.18
+    container_name: mesh-backend-agent-2
+    depends_on:
+      - consul
+    networks:
+      - mesh-net
+    volumes:
+      - ./consul-config/agent-backend-2.hcl:/consul/config/agent.hcl:ro
+      - ./consul-config/backend-service-2.hcl:/consul/config/backend-service.hcl:ro
+    command: >
+      agent
+      -node=backend-node-2
+      -retry-join=consul-server
+      -bind=0.0.0.0
+      -client=0.0.0.0
+
+  backend-2:
+    image: testapp-backend:latest
+    pull_policy: never
+    container_name: mesh-backend-2
+    network_mode: "service:backend-agent-2"
+    depends_on:
+      - backend-agent-2
+
+  backend-sidecar-2:
+    build:
+      context: ./sidecar
+      dockerfile: Dockerfile
+    container_name: mesh-backend-sidecar-2
+    depends_on:
+      - backend-agent-2
+    network_mode: "service:backend-agent-2"
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      until wget -q -O- http://localhost:8500/v1/status/leader > /dev/null 2>&1; do sleep 2; done;
+      consul connect envoy
+      -sidecar-for backend-2
+      -http-addr=localhost:8500
+      -grpc-addr=localhost:8502
+      -admin-bind 0.0.0.0:19002
+      "
+
+  # ─── Backend Replica 3 ───
+  backend-agent-3:
+    image: hashicorp/consul:1.18
+    container_name: mesh-backend-agent-3
+    depends_on:
+      - consul
+    networks:
+      - mesh-net
+    volumes:
+      - ./consul-config/agent-backend-3.hcl:/consul/config/agent.hcl:ro
+      - ./consul-config/backend-service-3.hcl:/consul/config/backend-service.hcl:ro
+    command: >
+      agent
+      -node=backend-node-3
+      -retry-join=consul-server
+      -bind=0.0.0.0
+      -client=0.0.0.0
+
+  backend-3:
+    image: testapp-backend:latest
+    pull_policy: never
+    container_name: mesh-backend-3
+    network_mode: "service:backend-agent-3"
+    depends_on:
+      - backend-agent-3
+
+  backend-sidecar-3:
+    build:
+      context: ./sidecar
+      dockerfile: Dockerfile
+    container_name: mesh-backend-sidecar-3
+    depends_on:
+      - backend-agent-3
+    network_mode: "service:backend-agent-3"
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      until wget -q -O- http://localhost:8500/v1/status/leader > /dev/null 2>&1; do sleep 2; done;
+      consul connect envoy
+      -sidecar-for backend-3
+      -http-addr=localhost:8500
+      -grpc-addr=localhost:8502
+      -admin-bind 0.0.0.0:19003
+      "
+
+  # ─── Frontend (unchanged) ───
   frontend-agent:
     image: hashicorp/consul:1.18
     container_name: mesh-frontend-agent
