@@ -114,12 +114,11 @@ consul-service-mesh/
 │       ├── docker-compose.yml
 │       ├── consul-config/             # HCL configs (server, agents, services)
 │       └── sidecar/                   # Custom sidecar image (Envoy + Consul CLI)
-├── benchmarks/
-│   ├── scripts/
-│   │   ├── benchmark.js               # k6 load-test script
-│   │   └── output/                    # HTML reports
-│   └── results/                       # Raw results (hey + k6 + stats)
-└── security/                          # Future security analysis
+└── benchmarks/
+    ├── scripts/
+    │   ├── benchmark.js               # k6 load-test script
+    │   └── output/                    # HTML reports
+    └── results/                       # Raw results (hey + k6 + stats)
 ```
 
 ---
